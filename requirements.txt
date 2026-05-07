@@ -1,0 +1,4 @@
+gcsfs
+nibabel
+nilearn
+google-cloud-storage
