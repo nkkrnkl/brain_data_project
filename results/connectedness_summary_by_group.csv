@@ -1,0 +1,3 @@
+age_group,n,n_bumped,mean_kappa_final,max_kappa_final,pct_bumped
+adult,31,24,0.17258064516129035,0.43,77.4
+child,77,54,0.1644155844155844,0.49,70.1

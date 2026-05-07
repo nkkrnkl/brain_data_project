@@ -1,0 +1,7 @@
+age_group,fd,n_in_cohort,n_included,n_min_retained_excluded,n_kappa_max_excluded,n_other_excluded
+adult,0.3,32,26,6,0,0
+child,0.3,99,55,42,2,0
+adult,0.5,32,31,1,0,0
+child,0.5,99,77,17,5,0
+adult,0.9,32,32,0,0,0
+child,0.9,99,87,6,6,0

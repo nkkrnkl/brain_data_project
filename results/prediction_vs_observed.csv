@@ -1,0 +1,6 @@
+metric,predicted_sign_with_age,observed_sign_with_age,beta_age_primary,p_age_primary,FDR_q_primary,theory_consistent,rationale
+clustering_w,+,+,0.0016013626567609,4.6654190809913955e-05,0.0002332709540495,True,explore→exploit: local clustering increases with age
+modularity_q,+,+,0.00105829304367,0.317848502568327,0.7946212564208174,True,communities sharpen with age (Gu et al 2015)
+char_path_length,+,-,-0.0004281569879226,0.9253453166967456,0.9253453166967456,False,decreased global integration → longer paths
+small_worldness,+,+,0.0043108741132354,0.5005215455476246,0.8342025759127077,True,more small-world with developmental segregation
+mean_betweenness,-,-,-4.36894885635429e-06,0.925345316696736,0.9253453166967456,True,fewer hub-mediated cross-network shortcuts

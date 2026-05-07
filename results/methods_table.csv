@@ -1,0 +1,15 @@
+parameter,value,block,citation
+Atlas,"Schaefer 2018, 100 cortical ROIs",locked,Schaefer2018
+Confound model,Friston-24 + WM + CSF + DCT cosines + intercept,locked,Friston1996; Power2014; Satterthwaite2013
+Edge measure,"Pearson r → Fisher z, negatives zeroed",locked,Rubinov & Sporns 2010
+Null model,"Maslov–Sneppen degree-preserving rewiring (binary), 100 nulls/subject, swaps_per_edge=10",locked,MaslovSneppen2002
+Min retained data,4 minutes (= 120 volumes at TR=2s),locked,Power2014
+TR,2.0 s (Richardson 2018; bucket header reports 1.0s — overridden by spec),locked,Richardson2018
+Connectedness rule,Per-subject κ-bump in steps of 0.01 until graph connected (max κ=0.5),locked,this study
+Modularity algorithm,"Louvain (networkx.community.louvain_communities), seeded",locked,Blondel2008
+Small-worldness,σ = (C/C_rand) / (L/L_rand) on binary graph,locked,Humphries2008
+FD threshold (primary),0.5 mm,swept,Power2014
+FD threshold (sweep grid),"{0.3, 0.5, 0.9} mm",swept,Power2014; Satterthwaite2013
+Edge density κ (primary),0.10,swept,Achard2007
+Edge density κ (sweep grid),"{0.05, 0.10, 0.15, 0.20, 0.25}",swept,Achard2007
+Random seed,"20260507 (threaded through scrubbing, Louvain, and null rewiring)",locked,this study

@@ -88,6 +88,37 @@ def _short_sha1(obj: Any) -> str:
     return hashlib.sha1(json.dumps(obj, sort_keys=True, default=str).encode()).hexdigest()[:8]
 
 
+# Methods-section parameter table: hand-aligned with the inline citation comments
+# on Config fields. Edits here must stay in lock-step with Config.
+METHODS_TABLE_ROWS: list[dict] = [
+    {"parameter": "Atlas",                       "value": "Schaefer 2018, 100 cortical ROIs", "block": "locked", "citation": "Schaefer2018"},
+    {"parameter": "Confound model",              "value": "Friston-24 + WM + CSF + DCT cosines + intercept", "block": "locked", "citation": "Friston1996; Power2014; Satterthwaite2013"},
+    {"parameter": "Edge measure",                "value": "Pearson r → Fisher z, negatives zeroed", "block": "locked", "citation": "Rubinov & Sporns 2010"},
+    {"parameter": "Null model",                  "value": "Maslov–Sneppen degree-preserving rewiring (binary), 100 nulls/subject, swaps_per_edge=10", "block": "locked", "citation": "MaslovSneppen2002"},
+    {"parameter": "Min retained data",           "value": "4 minutes (= 120 volumes at TR=2s)", "block": "locked", "citation": "Power2014"},
+    {"parameter": "TR",                          "value": "2.0 s (Richardson 2018; bucket header reports 1.0s — overridden by spec)", "block": "locked", "citation": "Richardson2018"},
+    {"parameter": "Connectedness rule",          "value": "Per-subject κ-bump in steps of 0.01 until graph connected (max κ=0.5)", "block": "locked", "citation": "this study"},
+    {"parameter": "Modularity algorithm",        "value": "Louvain (networkx.community.louvain_communities), seeded", "block": "locked", "citation": "Blondel2008"},
+    {"parameter": "Small-worldness",             "value": "σ = (C/C_rand) / (L/L_rand) on binary graph", "block": "locked", "citation": "Humphries2008"},
+    {"parameter": "FD threshold (primary)",      "value": "0.5 mm", "block": "swept", "citation": "Power2014"},
+    {"parameter": "FD threshold (sweep grid)",   "value": "{0.3, 0.5, 0.9} mm", "block": "swept", "citation": "Power2014; Satterthwaite2013"},
+    {"parameter": "Edge density κ (primary)",    "value": "0.10", "block": "swept", "citation": "Achard2007"},
+    {"parameter": "Edge density κ (sweep grid)", "value": "{0.05, 0.10, 0.15, 0.20, 0.25}", "block": "swept", "citation": "Achard2007"},
+    {"parameter": "Random seed",                 "value": "20260507 (threaded through scrubbing, Louvain, and null rewiring)", "block": "locked", "citation": "this study"},
+]
+
+
+def dump_methods_table(out_path: Path) -> Path:
+    """Write the Methods-section parameter table to CSV.
+
+    Single source of truth for the writeup's Methods table. Citations are
+    keys to be expanded in the bibliography.
+    """
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(METHODS_TABLE_ROWS).to_csv(out_path, index=False)
+    return out_path
+
+
 # =============================================================================
 # Cache layer (one helper used by every layer)
 # =============================================================================
