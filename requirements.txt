@@ -2,3 +2,9 @@ gcsfs
 nibabel
 nilearn
 google-cloud-storage
+matplotlib
+networkx
+numpy
+pandas
+scipy
+statsmodels

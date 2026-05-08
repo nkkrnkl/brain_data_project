@@ -242,3 +242,51 @@ python3 make_tables.py                                                      # wr
 python3 make_figures.py                                                     # writes the 5 writeup-ready figures
 python3 visualize_graph.py sub-pixar002                                     # optional: single-subject graph PNG
 ```
+
+## Supplementary analysis: Fix A (no κ-bumping)
+
+The primary pipeline enforces connected graphs by *per-subject κ-bumping*, which can break
+apples-to-apples comparability because different subjects end up with different effective
+densities (`kappa_final`).
+
+This repo includes a supplementary “Fix A” pipeline that:
+
+- builds graphs at the **requested κ only** (no bumping)
+- computes metrics on the **largest connected component (LCC)** when a graph is disconnected
+- writes outputs to separate `*_nobump_*` filenames (does not overwrite the primary analysis)
+
+Run the supplementary analysis (example: primary settings):
+
+```bash
+# 1) Build no-bump graphs + manifest + QC
+python3 supplement_fixA_build_nobump.py --fd 0.5 --kappa 0.10
+
+# 2) Compute metrics on largest connected component (LCC)
+python3 compute_metrics_nobump_lcc.py --fd 0.5 --kappa 0.10
+
+# 3) Run the same age regression + group comparison on the no-bump metrics
+python3 analyze_age_nobump_lcc.py --fd 0.5 --kappa 0.10
+```
+
+### What Fix A tells us (primary settings)
+
+Fix A is a sensitivity check for the “κ-bumping comparability” concern: it removes per-subject κ changes and instead
+computes metrics on the **largest connected component (LCC)** of the fixed-κ graph.
+
+At **FD=0.5, κ=0.10**, the Fix A run produced:
+
+- `results/manifest_nobump_FD0.5_kappa0.1.csv` (no-bump build + LCC diagnostics per subject)
+- `cache/layer4_nobump/metrics_nobump_FD0.5_kappa0.1.csv` (metric panel on LCC)
+- `results/age_regression_nobump_FD0.5_kappa0.1.csv` and `results/group_comparison_nobump_FD0.5_kappa0.1.csv`
+
+Headline results (n=114 included):
+
+- **Clustering coefficient remains positively associated with age and is significant after FDR**
+  - β_age ≈ +0.00145, p≈5.2e-4, FDR-q≈0.0026
+- **Modularity is nominally significant (p≈0.047) but not FDR-significant**
+  - This suggests the modularity signal is present but weaker / more parameter-sensitive.
+- Path length, small-worldness, and mean betweenness are not significant at κ=0.10 in this Fix A analysis.
+
+Interpretation: the key “clustering increases with age” finding is **not an artifact of κ-bumping** (it persists when κ is
+held fixed and disconnectedness is handled via LCC). However, Fix A also shows that at κ=0.10 many subjects’ graphs are
+not fully connected, so connectedness-handling choices still materially affect some metrics.
