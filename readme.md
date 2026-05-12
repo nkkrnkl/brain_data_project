@@ -41,6 +41,11 @@ primary cell is FD=0.5, κ=0.10; κ and FD sweeps are sensitivity analyses.
 ├── compute_metrics_nobump_lcc.py
 ├── analyze_age_nobump_lcc.py
 │
+├── analyze_absolute_threshold.py
+├── analyze_meanz_kappa_sensitivity.py
+├── analyze_gft.py
+├── analyze_gft_crosstest.py
+│
 └── results/
 ```
 
@@ -81,6 +86,20 @@ python3 compute_metrics_nobump_lcc.py --fd 0.5 --kappa 0.10
 python3 analyze_age_nobump_lcc.py --fd 0.5 --kappa 0.10
 ```
 
+### Supplementary Fix B: integration & connectivity diagnostics
+
+Discharges the van den Heuvel mean-connectivity confound on the clustering
+result and adds a Graph Fourier Transform probe of "broad vs localized"
+activation. Each script reuses the layer-1/2/4 caches built by the primary
+sweep; no extra GCS pulls.
+
+```bash
+python3 analyze_absolute_threshold.py        # z>0.3, z>0.5 + meanz panel sweep
+python3 analyze_meanz_kappa_sensitivity.py   # meanz attenuation across κ grid
+python3 analyze_gft.py                       # GFT bands + median graph freq
+python3 analyze_gft_crosstest.py             # GFT-as-covariate in metric panel
+```
+
 Total compute on a cold cache: ~90 minutes; ~100 MB on-disk cache;
 ~3 MB tracked outputs in `results/`.
 
@@ -116,3 +135,13 @@ Total compute on a cold cache: ~90 minutes; ~100 MB on-disk cache;
 | `results/qc_FD*_kappa*/*.png`                 | Density-vs-age and FD-vs-age QC plots per (FD, κ)             |
 | `results/viz/*.png`                           | Per-subject brain-graph renders                               |
 | `results/*_nobump_*`                          | Fix A supplementary outputs (manifest, regression, group comparison, QC) |
+| `results/absthresh_per_subject_z*.csv`        | Fix B: per-subject density, LCC size, mean Fisher-z, Onnela clustering at absolute thresholds z ∈ {0.3, 0.5} |
+| `results/absthresh_age_regression_z*.csv`     | Fix B: clustering ~ age + sex + mean_FD with vs without mean Fisher-z covariate, per z threshold |
+| `results/absthresh_group_comparison_z*.csv`   | Fix B: Mann–Whitney child vs adult clustering per z threshold |
+| `results/absthresh_meanz_covariate_FD*.csv`   | Fix B: panel-wide age regression with vs without mean Fisher-z covariate at primary cell |
+| `results/meanz_kappa_sensitivity.csv`         | Fix B: panel age effects with vs without mean Fisher-z covariate across the κ grid |
+| `results/gft_per_subject.csv`                 | Fix B: per-subject GFT band-energy fractions and median graph frequency |
+| `results/gft_band_comparison.csv`             | Fix B: child vs adult Mann–Whitney for low/mid/high graph-frequency bands |
+| `results/gft_median_freq_regression.csv`      | Fix B: median graph frequency ~ age + sex + mean_FD            |
+| `results/gft_crosstest_FD*.csv`               | Fix B: panel age regression with median graph frequency as covariate |
+| `results/figures/fig{7,8,9}_*.png`            | Fix B figures: absolute-threshold replication; GFT bands + median; κ-sensitivity of meanz attenuation |
