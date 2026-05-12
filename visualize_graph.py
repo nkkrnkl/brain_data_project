@@ -1,4 +1,3 @@
-"""Visualize a single subject's thresholded FC graph (Layer 3 cache)."""
 from __future__ import annotations
 
 import argparse
@@ -52,7 +51,6 @@ def main():
     print(f"{args.subject_id}: {n} nodes, {G.number_of_edges()} edges, "
           f"density={nx.density(G):.3f}, mean_w={np.mean([d['weight'] for _,_,d in G.edges(data=True)]):.3f}")
 
-    # Build masked z-matrix (only edges retained in G)
     Zg = np.zeros_like(Z)
     for u, v, d in G.edges(data=True):
         Zg[int(u), int(v)] = d["weight"]
@@ -60,14 +58,12 @@ def main():
 
     fig = plt.figure(figsize=(20, 6))
 
-    # ---- Panel 1: thresholded adjacency heatmap ----
     ax1 = fig.add_subplot(1, 3, 1)
     im = ax1.imshow(Zg, cmap="viridis", aspect="equal")
     ax1.set_title(f"Thresholded Z (κ={args.kappa})")
     ax1.set_xlabel("ROI"); ax1.set_ylabel("ROI")
     fig.colorbar(im, ax=ax1, fraction=0.046, pad=0.04, label="Fisher z")
 
-    # ---- Panel 2: spring (force-directed) layout ----
     ax2 = fig.add_subplot(1, 3, 2)
     pos = nx.spring_layout(G, seed=cfg.seed, weight="weight", k=0.4, iterations=80)
     deg = np.array([G.degree(n) for n in G.nodes()])
@@ -79,9 +75,8 @@ def main():
     ax2.set_title("Spring layout (size/color = degree)")
     ax2.axis("off")
 
-    # ---- Panel 3: anatomical layout (axial top-down via Schaefer MNI centroids) ----
     ax3 = fig.add_subplot(1, 3, 3)
-    coords = schaefer_mni_centroids(cfg)  # (100, 3) in MNI mm
+    coords = schaefer_mni_centroids(cfg)
     pos_anat = {i: (coords[i, 0], coords[i, 1]) for i in range(coords.shape[0])}
     nx.draw_networkx_edges(G, pos_anat, ax=ax3, alpha=0.2,
                            width=0.2 + 1.5 * (weights - weights.min()) / max(float(np.ptp(weights)), 1e-9))

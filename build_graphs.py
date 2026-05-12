@@ -1,16 +1,3 @@
-"""build_graphs.py — undirected weighted FC graphs for the Richardson 2018
-developmental fMRI cohort (gs://results_050626/).
-
-Pipeline (single-pipeline, no alternatives — see Methods):
-    raw 4D BOLD  ──parcellate(Schaefer-100)──▶ ROI timeseries
-                 ──FD-scrub + Friston-24 + WM + CSF + DCT (OLS)──▶ clean TS  [Layer 1]
-                 ──Pearson r → Fisher z → zero negs/diag────────▶ z-matrix  [Layer 2]
-                 ──top-κ density + per-subject connectedness bump▶ graphml  [Layer 3]
-
-The three cache layers are keyed independently so the κ sweep only
-re-touches Layer 3 and the FD sweep only invalidates Layers 1+2.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -33,41 +20,34 @@ if not logger.handlers:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
-# =============================================================================
-# Config
-# =============================================================================
-
 @dataclass
 class Config:
     """Single source of truth for every analysis parameter.
 
-    Locked block: methodological choices defended in the writeup; not parametrized
-    on swept code paths. Swept block: only fd_threshold and kappa vary across runs.
+    Locked block: methodological choices defended in the writeup; not
+    parametrized on swept code paths. Swept block: only fd_threshold and
+    kappa vary across runs. Citation keys for every parameter are kept in
+    METHODS_TABLE_ROWS below and dumped to results/methods_table.csv.
     """
-    # ---------------- LOCKED (no setters in swept code paths) ----------------
-    n_rois: int = 100                                # Schaefer 2018, 100 ROI cortical (Schaefer2018)
-    confound_model_name: str = "friston24+wm+csf+dct"  # Friston1996; Power2014; Satterthwaite2013
-    edge_measure_name: str = "pearson_fisher_z_neg_zero"  # Fisher z; neg→0 (Rubinov & Sporns 2010 abs+threshold variant)
-    null_model_name: str = "maslov_sneppen"          # Maslov & Sneppen 2002 degree-preserving rewiring
-    n_rewires: int = 100                             # 100 rewires per subject for null distributions
-    min_retained_minutes: float = 4.0                # Power2014 minimum-retention floor
-    tr_seconds: float = 2.0                          # Richardson 2018 dataset TR (header on bucket files reports 1.0s; spec-locked)
-    seed: int = 20260507                             # threaded through every stochastic step
+    n_rois: int = 100
+    confound_model_name: str = "friston24+wm+csf+dct"
+    edge_measure_name: str = "pearson_fisher_z_neg_zero"
+    null_model_name: str = "maslov_sneppen"
+    n_rewires: int = 100
+    min_retained_minutes: float = 4.0
+    tr_seconds: float = 2.0
+    seed: int = 20260507
 
-    # ---------------- SWEPT ----------------
-    fd_threshold: float = 0.5                        # mm; primary = 0.5 (Power criterion)
-    kappa: float = 0.10                              # primary edge density
+    fd_threshold: float = 0.5
+    kappa: float = 0.10
 
-    # ---------------- per-subject connectedness rule ----------------
-    kappa_step: float = 0.01                         # κ-bump increment when disconnected
-    kappa_max: float = 0.5                           # safety stop on κ-bump
+    kappa_step: float = 0.01
+    kappa_max: float = 0.5
 
-    # ---------------- paths ----------------
     cache_dir: Path = field(default_factory=lambda: Path("cache"))
     results_dir: Path = field(default_factory=lambda: Path("results"))
-    schaefer_atlas_path: Optional[Path] = None       # if None → one-time nilearn fetch (atlas ≠ dataset)
+    schaefer_atlas_path: Optional[Path] = None
 
-    # ---------------- derived ----------------
     @property
     def min_retained_volumes(self) -> int:
         return int(np.ceil(self.min_retained_minutes * 60.0 / self.tr_seconds))
@@ -88,8 +68,6 @@ def _short_sha1(obj: Any) -> str:
     return hashlib.sha1(json.dumps(obj, sort_keys=True, default=str).encode()).hexdigest()[:8]
 
 
-# Methods-section parameter table: hand-aligned with the inline citation comments
-# on Config fields. Edits here must stay in lock-step with Config.
 METHODS_TABLE_ROWS: list[dict] = [
     {"parameter": "Atlas",                       "value": "Schaefer 2018, 100 cortical ROIs", "block": "locked", "citation": "Schaefer2018"},
     {"parameter": "Confound model",              "value": "Friston-24 + WM + CSF + DCT cosines + intercept", "block": "locked", "citation": "Friston1996; Power2014; Satterthwaite2013"},
@@ -118,10 +96,6 @@ def dump_methods_table(out_path: Path) -> Path:
     pd.DataFrame(METHODS_TABLE_ROWS).to_csv(out_path, index=False)
     return out_path
 
-
-# =============================================================================
-# Cache layer (one helper used by every layer)
-# =============================================================================
 
 @dataclass
 class CacheStats:
@@ -183,10 +157,6 @@ def _layer3_load(p: Path) -> dict:
     return {"graph": G, **meta}
 
 
-# =============================================================================
-# Bucket inspection
-# =============================================================================
-
 def inspect_bucket() -> dict:
     """List bucket contents and characterize per-subject inventory.
 
@@ -220,10 +190,6 @@ def _subject_id_from_path(p: str) -> str:
     return Path(p).name.split("_")[0]
 
 
-# =============================================================================
-# Subject loading
-# =============================================================================
-
 def load_subject_raw(subject_id: str) -> dict:
     """Stream raw BOLD nifti + full confounds TSV + phenotypic row from GCS."""
     bold_path = f"{subject_id}_task-pixar_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz"
@@ -253,10 +219,6 @@ def _phenotype_lookup() -> pd.DataFrame:
     return df.set_index("participant_id")
 
 
-# =============================================================================
-# Confound matrix
-# =============================================================================
-
 def build_confound_matrix(confounds_df: pd.DataFrame, cfg: Config) -> np.ndarray:
     """Friston-24 motion + WM + CSF + DCT cosines + intercept.
 
@@ -283,10 +245,6 @@ def build_confound_matrix(confounds_df: pd.DataFrame, cfg: Config) -> np.ndarray
     intercept = np.ones((len(confounds_df), 1))
     return np.hstack([intercept, Friston24, wm, csf, DCT])
 
-
-# =============================================================================
-# Schaefer atlas
-# =============================================================================
 
 _MASKER_SINGLETON: dict = {}
 
@@ -317,10 +275,6 @@ def _get_schaefer_masker(cfg: Config):
     return masker
 
 
-# =============================================================================
-# Scrub + regress (Layer 1 producer)
-# =============================================================================
-
 def scrub_and_regress(bold_img, confounds_df: pd.DataFrame, cfg: Config,
                       masker=None) -> Optional[dict]:
     """Parcellate → FD-scrub (Power 2014) → drop scrubbed volumes → OLS-regress.
@@ -337,7 +291,7 @@ def scrub_and_regress(bold_img, confounds_df: pd.DataFrame, cfg: Config,
         logger.warning("BOLD header TR=%.3fs ≠ cfg.tr_seconds=%.3fs (using cfg per spec)",
                        header_tr, cfg.tr_seconds)
 
-    Y = masker.fit_transform(bold_img)  # (T, n_rois)
+    Y = masker.fit_transform(bold_img)
     C = build_confound_matrix(confounds_df, cfg)
 
     fd = np.nan_to_num(confounds_df["framewise_displacement"].to_numpy(dtype=float), nan=0.0)
@@ -352,15 +306,10 @@ def scrub_and_regress(bold_img, confounds_df: pd.DataFrame, cfg: Config,
 
     Y_keep = Y[keep]
     C_keep = C[keep]
-    # Column-scale non-intercept regressors to unit variance so β stays
-    # well-conditioned (raw WM/CSF means are ~10^3, motion ~10^0). Scaling
-    # is invariant on the residual: (X·D)·(D⁻¹·β) = X·β.
     scales = np.std(C_keep, axis=0)
-    scales[0] = 1.0  # leave the intercept column alone
+    scales[0] = 1.0
     scales[scales < 1e-12] = 1.0
     C_scaled = C_keep / scales
-    # BLAS can raise spurious FPE flags on large-magnitude matmul; the
-    # lstsq result is finite (verified) so we silence those flags here.
     with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
         beta, *_ = np.linalg.lstsq(C_scaled, Y_keep, rcond=None)
         R = Y_keep - C_scaled @ beta
@@ -371,10 +320,6 @@ def scrub_and_regress(bold_img, confounds_df: pd.DataFrame, cfg: Config,
         "mean_FD_retained": float(fd[keep].mean()),
     }
 
-
-# =============================================================================
-# Z-matrix (Layer 2 producer)
-# =============================================================================
 
 def compute_z_matrix(clean_ts: np.ndarray) -> np.ndarray:
     """Pearson r → Fisher z, zero negatives + diagonal, symmetric.
@@ -393,10 +338,6 @@ def compute_z_matrix(clean_ts: np.ndarray) -> np.ndarray:
     np.fill_diagonal(Z, 0.0)
     return ((Z + Z.T) / 2.0).astype(np.float32)
 
-
-# =============================================================================
-# Threshold + connectedness (Layer 3 producer)
-# =============================================================================
 
 def threshold_to_density(z: np.ndarray, kappa: float) -> nx.Graph:
     """Keep top-κ fraction of edges by absolute weight; weighted graph (z-values).
@@ -434,10 +375,6 @@ def enforce_connectedness(z: np.ndarray, kappa_start: float,
     raise RuntimeError(f"Could not connect graph at κ ≤ {max_kappa}")
 
 
-# =============================================================================
-# Maslov–Sneppen null (utility — used by downstream metrics, not by this builder)
-# =============================================================================
-
 def maslov_sneppen_null(G: nx.Graph, n_rewires: int, seed: int) -> nx.Graph:
     """Degree-preserving rewiring (Maslov & Sneppen 2002) via networkx.double_edge_swap.
 
@@ -458,10 +395,6 @@ def maslov_sneppen_null(G: nx.Graph, n_rewires: int, seed: int) -> nx.Graph:
     return Gn
 
 
-# =============================================================================
-# Main entry: build_subject_graph
-# =============================================================================
-
 def build_subject_graph(subject_id: str, cfg: Config,
                         stats: Optional[CacheStats] = None,
                         masker=None) -> dict:
@@ -476,7 +409,6 @@ def build_subject_graph(subject_id: str, cfg: Config,
     fd = cfg.fd_threshold
     kappa = cfg.kappa
 
-    # ---- Layer 1: clean parcellated timeseries ----
     layer1_path = cfg.cache_dir / "layer1" / f"{subject_id}_FD{fd}_conf{confound_h}.npz"
 
     def _compute_layer1():
@@ -499,7 +431,6 @@ def build_subject_graph(subject_id: str, cfg: Config,
     if bool(layer1["excluded"]):
         return _excluded_record(subject_id, layer1, layer1_path)
 
-    # ---- Layer 2: z-matrix ----
     layer2_path = cfg.cache_dir / "layer2" / f"{subject_id}_FD{fd}_conf{confound_h}_edge{edge_h}.npy"
 
     def _compute_layer2():
@@ -509,7 +440,6 @@ def build_subject_graph(subject_id: str, cfg: Config,
     if stats is not None:
         stats.record(2, hit2)
 
-    # ---- Layer 3: thresholded graph ----
     layer3_path = cfg.cache_dir / "layer3" / f"{subject_id}_FD{fd}_kappa{kappa}_null{null_h}.graphml"
 
     def _compute_layer3():
@@ -527,9 +457,6 @@ def build_subject_graph(subject_id: str, cfg: Config,
     try:
         layer3, hit3 = load_or_compute(layer3_path, _compute_layer3, _layer3_save, _layer3_load)
     except RuntimeError as e:
-        # κ_max disconnected → expected exclusion (not an error). Preserve
-        # L1/L2 cache paths in the manifest so sweep-driver assertions can
-        # still count L2-cached subjects accurately.
         if "Could not connect" not in str(e):
             raise
         if stats is not None:
@@ -591,10 +518,6 @@ def _excluded_record(subject_id: str, layer1: dict, layer1_path: Path) -> dict:
         "mean_weight": 0.0,
     }
 
-
-# =============================================================================
-# build_all
-# =============================================================================
 
 MANIFEST_COLUMNS = [
     "subject_id", "age", "age_group", "sex",
@@ -661,10 +584,6 @@ def build_all(subject_ids: list[str], cfg: Config, manifest_path: Path,
     return df
 
 
-# =============================================================================
-# QC
-# =============================================================================
-
 def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
     """Six-panel QC PNG + flag dict for the (FD, κ) combination in the manifest."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -674,7 +593,6 @@ def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
 
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
-    # 1) Pooled edge-weight histogram
     ax = axes[0, 0]
     pooled = []
     for path in inc["layer3_cache"]:
@@ -686,7 +604,6 @@ def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
     ax.set_title(f"Edge weights (pooled, n={len(pooled)})")
     ax.set_xlabel("Fisher z"); ax.set_ylabel("count")
 
-    # 2) Density per subject by age group
     ax = axes[0, 1]
     for grp, sub in inc.groupby("age_group"):
         ax.scatter(sub["age"], sub["density"], label=grp, alpha=0.7)
@@ -697,7 +614,6 @@ def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
 
     flags: dict = {}
 
-    # 3) Density vs age (CRITICAL: should be flat at fixed κ)
     ax = axes[0, 2]
     if len(inc) >= 3:
         r, p = sstats.pearsonr(inc["age"].to_numpy(), inc["density"].to_numpy())
@@ -708,7 +624,6 @@ def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
         flags["density_age_flag"] = bool(abs(r) > 0.2)
     ax.set_xlabel("age (yr)"); ax.set_ylabel("density")
 
-    # 4) Mean FD vs age (CRITICAL: residual-motion-confound check)
     ax = axes[1, 0]
     if len(inc) >= 3:
         r, p = sstats.pearsonr(inc["age"].to_numpy(), inc["mean_FD"].to_numpy())
@@ -719,7 +634,6 @@ def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
         flags["fd_age_flag"] = bool(abs(r) > 0.2)
     ax.set_xlabel("age (yr)"); ax.set_ylabel("mean retained FD (mm)")
 
-    # 5) Subjects retained per age group
     ax = axes[1, 1]
     by_grp = manifest.groupby("age_group")["included"].agg(["sum", "count"])
     if not by_grp.empty:
@@ -727,7 +641,6 @@ def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
     ax.set_title(f"Retained per age group (FD={fd})")
     ax.set_ylabel("n")
 
-    # 6) Subjects needing κ-bump
     ax = axes[1, 2]
     bumped = int((~inc["connected_at_requested_kappa"]).sum())
     unchanged = int(inc["connected_at_requested_kappa"].sum())
@@ -748,10 +661,6 @@ def qc_report(manifest: pd.DataFrame, output_dir: Path) -> dict:
     flags["n_total"] = int(len(manifest))
     return flags
 
-
-# =============================================================================
-# Convenience: complete-cohort discovery
-# =============================================================================
 
 def complete_cohort() -> list[str]:
     """Subjects in the bucket with BOTH a BOLD and a full confounds file.

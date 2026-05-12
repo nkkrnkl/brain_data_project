@@ -1,17 +1,3 @@
-"""Stream fMRI data from a Google Cloud Storage bucket without local downloads.
-
-Setup (one-time):
-    pip install gcsfs nibabel nilearn google-cloud-storage
-    gcloud auth application-default login
-
-Usage:
-    from gcs_loader import list_files, open_nifti, load_nifti
-
-    files = list_files(suffix=".nii.gz")
-    img = load_nifti(files[0])              # nibabel image, data fetched lazily
-    data = img.get_fdata()                  # materializes into memory
-"""
-
 from __future__ import annotations
 
 import gzip
@@ -26,9 +12,6 @@ PROJECT = "brain-data-project-050626"
 
 @lru_cache(maxsize=1)
 def fs() -> gcsfs.GCSFileSystem:
-    # token="google_default" picks up `gcloud auth application-default login` ADC.
-    # `project` is intentionally omitted: gcsfs would otherwise reject when ADC's
-    # default project differs from PROJECT. Bucket access does not require it.
     return gcsfs.GCSFileSystem(token="google_default")
 
 

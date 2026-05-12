@@ -1,16 +1,3 @@
-"""supplement_fixA_build_nobump.py — supplementary Fix A (no κ-bumping) build.
-
-Goal: keep *all* existing code/analysis intact and add a parallel build that:
-  - uses the same Layer 1 (scrub+regress) and Layer 2 (z-matrix) caches
-  - builds Layer 3 graphs at the *requested* κ only (no per-subject bumping)
-  - writes outputs to separate paths so nothing overwrites the main analysis
-
-Outputs (per FD, κ):
-  - results/manifest_nobump_FD{fd}_kappa{kappa}.csv
-  - results/qc_nobump_FD{fd}_kappa{kappa}/qc_nobump_FD{fd}_kappa{kappa}.png
-  - cache/layer3_nobump/*.graphml (+ .json metadata)
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -51,7 +38,6 @@ def _largest_cc_stats(G: nx.Graph) -> tuple[int, float]:
     if n == 0:
         return 0, float("nan")
     if G.number_of_edges() == 0:
-        # Components are singletons; LCC size is 1 by construction.
         return 1, 1.0 / float(n)
     comps = list(nx.connected_components(G))
     if not comps:
@@ -72,7 +58,6 @@ def build_subject_graph_nobump(
     fd = cfg.fd_threshold
     kappa = cfg.kappa
 
-    # ---- Layer 1 (reuse bg's implementation + cache) ----
     layer1_path = cfg.cache_dir / "layer1" / f"{subject_id}_FD{fd}_conf{confound_h}.npz"
 
     def _compute_layer1():
@@ -112,7 +97,6 @@ def build_subject_graph_nobump(
             "largest_cc_frac_nodes": float("nan"),
         }
 
-    # ---- Layer 2 (reuse bg's implementation + cache) ----
     layer2_path = cfg.cache_dir / "layer2" / f"{subject_id}_FD{fd}_conf{confound_h}_edge{edge_h}.npy"
 
     def _compute_layer2():
@@ -122,7 +106,6 @@ def build_subject_graph_nobump(
     if stats is not None:
         stats.record(2, hit2)
 
-    # ---- Layer 3 (no bumping; separate cache dir) ----
     layer3_path = _layer3_nobump_path(cfg, subject_id)
 
     def _compute_layer3():
@@ -131,7 +114,7 @@ def build_subject_graph_nobump(
         lcc_n, lcc_frac = _largest_cc_stats(G)
         return {
             "graph": G,
-            "kappa_final": float(kappa),  # by definition: no bumping
+            "kappa_final": float(kappa),
             "connected_at_requested_kappa": bool(connected),
             "largest_cc_n_nodes": int(lcc_n),
             "largest_cc_frac_nodes": float(lcc_frac),
@@ -224,9 +207,6 @@ def build_all_nobump(
 
 def qc_report_nobump(manifest: pd.DataFrame, output_dir: Path) -> dict:
     """QC wrapper that reuses bg.qc_report output naming conventions."""
-    # We reuse bg.qc_report directly; it only needs the manifest schema columns it uses,
-    # which are present here. The only mismatch is that panel 6 "κ-bumped" becomes
-    # "not connected at requested κ" in this analysis, which is exactly what we want.
     flags = bg.qc_report(manifest.rename(columns={"kappa_requested": "kappa_requested"}), output_dir)
     return flags
 
@@ -262,14 +242,11 @@ def main() -> int:
     stats = bg.CacheStats()
     manifest_path = args.results_dir / f"manifest_nobump_FD{args.fd}_kappa{args.kappa}.csv"
     if args.offline:
-        # Offline mode: only build Layer 3 if Layer 2 exists; never touch GCS.
-        # Prefer phenotypic columns from an existing manifest if provided.
         seed_lookup = {}
         if manifest_seed is not None:
             for _, r in manifest_seed.iterrows():
                 seed_lookup[str(r["subject_id"])] = r.to_dict()
 
-        # Otherwise, try the bucket phenotype table (may fail offline).
         pheno = None
         if manifest_seed is None:
             try:
@@ -280,7 +257,6 @@ def main() -> int:
         confound_h = cfg.confound_hash()
         edge_h = cfg.edge_measure_hash()
         for sid in cohort:
-            # If we were given a seed manifest, prefer its layer2_cache pointer.
             seed = seed_lookup.get(str(sid), {})
             seed_layer2 = seed.get("layer2_cache", "")
             seed_layer2 = "" if (seed_layer2 is None or (isinstance(seed_layer2, float) and not np.isfinite(seed_layer2))) else seed_layer2
@@ -290,7 +266,6 @@ def main() -> int:
             )
             layer1_path = cfg.cache_dir / "layer1" / f"{sid}_FD{cfg.fd_threshold}_conf{confound_h}.npz"
             if not layer2_path.exists():
-                # phenotype from seed manifest if available
                 age = seed.get("age", float("nan"))
                 age_group = seed.get("age_group", "")
                 sex = seed.get("sex", "")

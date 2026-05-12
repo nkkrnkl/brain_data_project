@@ -1,13 +1,3 @@
-"""compute_metrics_nobump_lcc.py — supplementary Fix A metrics on LCC.
-
-Reads the no-bump manifest produced by supplement_fixA_build_nobump.py and
-computes the same metric panel as compute_metrics.py, but on the *largest
-connected component* (LCC) when the requested-κ graph is disconnected.
-
-Outputs:
-  - cache/layer4_nobump/metrics_nobump_FD{fd}_kappa{kappa}.csv
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -41,7 +31,6 @@ def _largest_connected_component(G: nx.Graph) -> nx.Graph:
     if G.number_of_nodes() == 0:
         return G.copy()
     if G.number_of_edges() == 0:
-        # Keep one node so downstream metrics are well-defined / return 0 or nan.
         H = nx.Graph()
         H.add_node(next(iter(G.nodes())))
         return H
@@ -60,11 +49,9 @@ def compute_metrics_for_subject_lcc(graph_path: Path, cfg: bg.Config) -> dict:
     lcc_n = H.number_of_nodes()
     lcc_frac = (lcc_n / G.number_of_nodes()) if G.number_of_nodes() else float("nan")
 
-    # Weighted metrics on LCC
     clust_w = cm.clustering_weighted(H)
     mod_q = cm.modularity_louvain(H, seed=cfg.seed)
 
-    # Binary metrics on LCC
     Hb = cm._binarize(H)
     L = cm.char_path_length_binary(Hb) if (Hb.number_of_nodes() >= 2 and nx.is_connected(Hb)) else float("nan")
     sigma, n_nulls = cm.small_worldness(H, n_nulls=cfg.n_rewires, seed=cfg.seed)

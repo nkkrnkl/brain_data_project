@@ -1,13 +1,3 @@
-"""Phase-5 deliverable: writeup-ready tables.
-
-Outputs (all under results/):
-    exclusion_table.csv          — N per (age_group × FD) × exclusion_reason
-    connectedness_report.csv     — per-subject and per-group κ-bumping summary
-    fd_sensitivity_table.csv     — β_age × FD × metric
-    kappa_sensitivity_table.csv  — β_age × κ × metric
-    prediction_vs_observed.csv   — Gopnik explore-exploit prediction vs observed
-    limitations_numbers.csv      — single-column numbers for the Discussion
-"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,17 +13,12 @@ METRICS = ["clustering_w", "modularity_q", "char_path_length",
            "small_worldness", "mean_betweenness"]
 
 
-# --------------------------------------------------------------------------
-# Predictions hand-coded from Gopnik explore-exploit + Richardson 2018 framing
-# --------------------------------------------------------------------------
-# Children explore (broad, integrated, less segregated brains) → with age
-# the network becomes more segregated and more efficient locally.
 PREDICTED_SIGN_WITH_AGE = {
-    "clustering_w":      "+",   # local segregation increases with age
-    "modularity_q":      "+",   # community structure sharpens with age
-    "char_path_length":  "+",   # less integrated → longer paths with age
-    "small_worldness":   "+",   # higher σ as the network matures
-    "mean_betweenness":  "-",   # fewer cross-network bridges as integration drops
+    "clustering_w":      "+",
+    "modularity_q":      "+",
+    "char_path_length":  "+",
+    "small_worldness":   "+",
+    "mean_betweenness":  "-",
 }
 PREDICTED_RATIONALE = {
     "clustering_w":     "explore→exploit: local clustering increases with age",
@@ -49,10 +34,6 @@ def _sign(x: float) -> str:
         return "n/a"
     return "+" if x > 0 else ("-" if x < 0 else "0")
 
-
-# --------------------------------------------------------------------------
-# Tables
-# --------------------------------------------------------------------------
 
 def exclusion_table(results_dir: Path) -> pd.DataFrame:
     """Cross-tab: rows = (age_group × FD), cols = exclusion reason counts."""
@@ -117,7 +98,6 @@ def kappa_sensitivity_table(results_dir: Path) -> pd.DataFrame:
                      values=["beta_age", "FDR_q", "n"])
     pivot.columns = [f"{a}_kappa{b}" for a, b in pivot.columns]
     pivot = pivot.reset_index()
-    # Stability: sign of β_age consistent across all κ?
     beta_cols = [c for c in pivot.columns if c.startswith("beta_age_")]
     sign_consistent = pivot[beta_cols].apply(
         lambda row: len(set(_sign(v) for v in row if pd.notna(v))) == 1, axis=1)
@@ -204,8 +184,7 @@ def limitations_numbers(results_dir: Path) -> pd.DataFrame:
         ("mean_kappa_final_at_primary", round(mean_k_final, 3)),
     ]
 
-    # Residual FD-vs-age correlations per FD condition
-    from scipy.stats import pearsonr  # local import keeps module imports light
+    from scipy.stats import pearsonr
     for fd in FD_GRID:
         m = pd.read_csv(results_dir / f"manifest_FD{fd}_kappa{PRIMARY_KAPPA}.csv")
         inc = m[m["included"] & m["age"].notna() & m["mean_FD"].notna()]

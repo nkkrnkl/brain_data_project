@@ -1,12 +1,3 @@
-"""Phase-4 deliverable: writeup-ready figures.
-
-Outputs (under results/figures/):
-    fig1_cohort_flow.png             — exclusion funnel
-    fig2_group_avg_zmatrix.png       — child / adult / (adult-child) Z-matrices
-    fig3_age_regression_panels.png   — per-metric scatter at primary settings
-    fig6_kappa_sensitivity.png       — β_age vs κ, panel per metric
-    fig_connectedness.png            — κ_final histogram + bumping by age group
-"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -39,10 +30,6 @@ def _save(fig, out_path: Path):
     fig.savefig(out_path, dpi=140, bbox_inches="tight")
     plt.close(fig)
 
-
-# --------------------------------------------------------------------------
-# fig 1 — cohort flow (exclusion funnel)
-# --------------------------------------------------------------------------
 
 def fig1_cohort_flow(results_dir: Path, out_path: Path):
     excl = pd.read_csv(results_dir / "exclusion_table.csv")
@@ -89,10 +76,6 @@ def fig1_cohort_flow(results_dir: Path, out_path: Path):
     _save(fig, out_path)
 
 
-# --------------------------------------------------------------------------
-# fig 2 — child vs adult mean z-matrices + difference
-# --------------------------------------------------------------------------
-
 def fig2_group_avg_zmatrix(cache_dir: Path, results_dir: Path, out_path: Path):
     cfg = bg.Config(fd_threshold=PRIMARY_FD, kappa=PRIMARY_KAPPA, cache_dir=cache_dir)
     edge_h = cfg.edge_measure_hash()
@@ -131,10 +114,6 @@ def fig2_group_avg_zmatrix(cache_dir: Path, results_dir: Path, out_path: Path):
     _save(fig, out_path)
 
 
-# --------------------------------------------------------------------------
-# fig 3 — per-metric scatter at primary settings
-# --------------------------------------------------------------------------
-
 def fig3_age_regression_panels(cache_dir: Path, results_dir: Path, out_path: Path):
     metrics_path = cache_dir / "layer4" / f"metrics_FD{PRIMARY_FD}_kappa{PRIMARY_KAPPA}.csv"
     manifest = pd.read_csv(results_dir / f"manifest_FD{PRIMARY_FD}_kappa{PRIMARY_KAPPA}.csv")
@@ -150,7 +129,6 @@ def fig3_age_regression_panels(cache_dir: Path, results_dir: Path, out_path: Pat
         for grp, sub in df.groupby("age_group"):
             ax.scatter(sub["age"], sub[m], alpha=0.7, label=grp,
                        edgecolor="none", s=30)
-        # Fit line over the full age range
         if df[m].notna().sum() >= 5:
             x = df["age"].to_numpy(); y = df[m].to_numpy()
             mask = np.isfinite(x) & np.isfinite(y)
@@ -175,10 +153,6 @@ def fig3_age_regression_panels(cache_dir: Path, results_dir: Path, out_path: Pat
     fig.tight_layout()
     _save(fig, out_path)
 
-
-# --------------------------------------------------------------------------
-# fig 6 — κ sensitivity (β_age vs κ, panel per metric)
-# --------------------------------------------------------------------------
 
 def fig6_kappa_sensitivity(results_dir: Path, out_path: Path):
     rows = []
@@ -206,7 +180,6 @@ def fig6_kappa_sensitivity(results_dir: Path, out_path: Path):
         ax.errorbar(sub["kappa"], sub["beta_age"], yerr=sub["se_age"],
                     fmt="o-", capsize=4, lw=1.5)
         ax.axhline(0, color="gray", lw=0.7, ls=":")
-        # Star points where FDR_q < .05
         sig = sub[sub["FDR_q"] < 0.05]
         if not sig.empty:
             ax.scatter(sig["kappa"], sig["beta_age"], s=120, marker="*",
@@ -222,10 +195,6 @@ def fig6_kappa_sensitivity(results_dir: Path, out_path: Path):
     fig.tight_layout()
     _save(fig, out_path)
 
-
-# --------------------------------------------------------------------------
-# fig connectedness
-# --------------------------------------------------------------------------
 
 def fig_connectedness(results_dir: Path, out_path: Path):
     per_sub = pd.read_csv(results_dir / "connectedness_report.csv")

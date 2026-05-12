@@ -1,23 +1,3 @@
-"""compute_metrics.py — graph-metric panel (Layer 4) for cached connectivity graphs.
-
-Metric panel (locked):
-    1. mean clustering coefficient   — weighted, Onnela (nx.clustering(weight='weight'))
-    2. modularity Q                  — weighted, Louvain (nx.community.louvain_communities)
-    3. characteristic path length L  — binary (consistent with the σ null comparison)
-    4. small-worldness σ             — binary, σ = (C/C_rand) / (L/L_rand) over 100 Maslov–Sneppen nulls
-    5. mean betweenness centrality   — binary, normalized
-
-Cache layer 4: one CSV per (FD, κ) at cache/layer4/metrics_FD{fd}_kappa{kappa}.csv
-with one row per subject. Updates per-row via load_or_compute on the row level.
-
-Run modes:
-    python3 compute_metrics.py --smoke        # 5 subjects at primary settings
-    python3 compute_metrics.py primary        # FD=0.5, κ=0.10 over the included cohort
-    python3 compute_metrics.py kappa          # FD=0.5, all κ in the grid
-    python3 compute_metrics.py fd             # κ=0.10, FD ∈ {0.3, 0.9} (FD=0.5 reuses primary)
-    python3 compute_metrics.py all            # primary → kappa → fd
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -48,10 +28,6 @@ METRIC_COLS = [
     "mean_betweenness", "n_nulls_used",
 ]
 
-
-# =============================================================================
-# Single-graph metric helpers
-# =============================================================================
 
 def _binarize(G: nx.Graph) -> nx.Graph:
     """Return an unweighted copy of G (any edge with weight>0 → edge=1)."""
@@ -97,14 +73,10 @@ def mean_betweenness_binary(Gb: nx.Graph) -> float:
     return float(np.mean(list(nx.betweenness_centrality(Gb, normalized=True).values())))
 
 
-# =============================================================================
-# Maslov–Sneppen null + small-worldness
-# =============================================================================
-
 def maslov_sneppen_null_binary(Gb: nx.Graph, swaps_per_edge: int, seed: int) -> nx.Graph:
     """One Maslov–Sneppen-rewired null preserving the binary degree sequence.
 
-    Number of swap attempts = swaps_per_edge * |E|. We use Q=10 by convention.
+    Number of swap attempts = swaps_per_edge * |E|.
     """
     Gn = Gb.copy()
     n_edges = Gn.number_of_edges()
@@ -154,10 +126,6 @@ def small_worldness(G: nx.Graph, n_nulls: int, seed: int,
     return float((C / C_rand) / (L / L_rand)), len(Cs)
 
 
-# =============================================================================
-# Per-subject metric computation
-# =============================================================================
-
 def compute_metrics_for_subject(graph_path: Path, cfg: bg.Config) -> dict:
     """Return one dict of metrics for the cached graphml at graph_path."""
     G = nx.read_graphml(str(graph_path), node_type=int)
@@ -178,10 +146,6 @@ def compute_metrics_for_subject(graph_path: Path, cfg: bg.Config) -> dict:
         "n_nulls_used": n_nulls,
     }
 
-
-# =============================================================================
-# Cohort-level driver with row-level caching
-# =============================================================================
 
 def _layer4_path(cfg: bg.Config) -> Path:
     return cfg.cache_dir / "layer4" / f"metrics_FD{cfg.fd_threshold}_kappa{cfg.kappa}.csv"
@@ -246,10 +210,6 @@ def compute_metrics_all(cfg: bg.Config, manifest_path: Path,
     df.to_csv(cache_path, index=False)
     return df
 
-
-# =============================================================================
-# Mode runners
-# =============================================================================
 
 def _manifest_for(cfg: bg.Config) -> Path:
     return cfg.results_dir / f"manifest_FD{cfg.fd_threshold}_kappa{cfg.kappa}.csv"

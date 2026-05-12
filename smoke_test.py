@@ -1,7 +1,3 @@
-"""smoke_test.py — sanity check at primary values (FD=0.5, κ=0.10) on 5 subjects.
-
-Confirms: bucket access, full pipeline, QC flags reasonable, cache disk usage.
-"""
 from __future__ import annotations
 
 import sys

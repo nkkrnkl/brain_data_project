@@ -1,9 +1,3 @@
-#!/usr/bin/env bash
-# Chain the remaining pipeline:
-#  1. Phase 1c (FD sweep metrics)
-#  2. Phase 3 sweep stats
-#  3. Phase 5 full tables
-#  4. Phase 4 fig6 + remake of fig1 (so cohort flow uses up-to-date numbers)
 set -euo pipefail
 cd "$(dirname "$0")"
 

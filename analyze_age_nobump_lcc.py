@@ -1,14 +1,3 @@
-"""analyze_age_nobump_lcc.py — supplementary Fix A (no κ-bump) age analysis.
-
-Matches analyze_age.py, but reads:
-  - results/manifest_nobump_FD{fd}_kappa{kappa}.csv
-  - cache/layer4_nobump/metrics_nobump_FD{fd}_kappa{kappa}.csv
-
-Writes:
-  - results/age_regression_nobump_FD{fd}_kappa{kappa}.csv
-  - results/group_comparison_nobump_FD{fd}_kappa{kappa}.csv
-"""
-
 from __future__ import annotations
 
 import argparse

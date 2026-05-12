@@ -1,9 +1,3 @@
-"""Phase-0 deliverable: methods-section pipeline block diagram + methods table CSV.
-
-Outputs:
-    results/figures/fig0_pipeline.png
-    results/methods_table.csv
-"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,7 +11,6 @@ import build_graphs as bg
 def make_pipeline_figure(out_path: Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Two rows of 6 boxes each (last row has 5 boxes + a spacer)
     boxes_top = [
         ("Raw 4D BOLD\n(MNI152NLin2009cAsym)\n168 vols, TR=2s", "#dde7f0"),
         ("Schaefer-100\nparcellation\n(MNI atlas)", "#dde7f0"),
@@ -63,16 +56,13 @@ def make_pipeline_figure(out_path: Path) -> Path:
         ax.annotate("", xy=p1, xytext=p0,
                     arrowprops=dict(arrowstyle="->", color="#333", lw=1.2))
 
-    # Horizontal arrows top row
     for i in range(len(centers_top) - 1):
         cx0, cy0 = centers_top[i]
         cx1, cy1 = centers_top[i + 1]
         arrow((cx0 + box_w / 2, cy0), (cx1 - box_w / 2, cy1))
-    # Wrap arrow: top-right → bottom-left
     cx_last_top, cy_last_top = centers_top[-1]
     cx_first_bot, cy_first_bot = centers_bot[0]
     arrow((cx_last_top, cy_last_top - box_h / 2), (cx_first_bot, cy_first_bot + box_h / 2))
-    # Horizontal arrows bottom row
     for i in range(len(centers_bot) - 1):
         cx0, cy0 = centers_bot[i]
         cx1, cy1 = centers_bot[i + 1]

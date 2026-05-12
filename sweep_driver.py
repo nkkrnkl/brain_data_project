@@ -1,13 +1,3 @@
-"""sweep_driver.py — practical run order for the project's sweeps.
-
-    python sweep_driver.py primary    # FD=0.5, κ=0.10, all subjects
-    python sweep_driver.py kappa      # FD=0.5, κ ∈ {0.05..0.25}, reuses Layer 2
-    python sweep_driver.py fd         # FD ∈ {0.3, 0.5, 0.9} × κ=0.10, recomputes Layer 1
-    python sweep_driver.py all        # primary → kappa → fd
-
-Cache-hit assertions ensure the κ sweep does NOT recompute z-matrices and the
-FD sweep recomputes Layer 1 only for new FD values.
-"""
 from __future__ import annotations
 
 import argparse
@@ -52,34 +42,24 @@ def cmd_primary(cohort, results_dir, cache_dir):
 
 def cmd_kappa(cohort, results_dir, cache_dir):
     print(f"--- κ SWEEP: FD={PRIMARY_FD}, κ ∈ {KAPPA_GRID}, N={len(cohort)} ---")
-    # Pre-flight: confirm primary cache exists and Layer 2 is fully populated.
     primary_cfg = bg.Config(fd_threshold=PRIMARY_FD, kappa=PRIMARY_KAPPA,
                             cache_dir=cache_dir, results_dir=results_dir)
     primary_path = _manifest_path(results_dir, PRIMARY_FD, PRIMARY_KAPPA)
     if not primary_path.exists():
         sys.exit("ERROR: run `sweep_driver.py primary` first — κ sweep depends on its Layer 2 cache.")
     primary_manifest = bg.pd.read_csv(primary_path)
-    # L2-cached subjects = those that passed the FD-retention floor at L1.
-    # That is NOT identical to N_included: subjects that failed L3 (κ_max
-    # RuntimeError) have a valid L2 cache but appear in the manifest as
-    # excluded with reason "build_error:RuntimeError".
     n_with_l2 = int(primary_manifest["layer2_cache"].fillna("").str.len().gt(0).sum())
 
-    # Run the sweep, including κ=primary (which should be a fully cached Layer 3 hit too).
     for kappa in KAPPA_GRID:
         stats = bg.CacheStats()
         _, flags = _run_one(cohort, PRIMARY_FD, kappa, results_dir, cache_dir, stats)
         print(f"  κ={kappa}: L1 hits/miss={stats.layer1_hits}/{stats.layer1_misses}  "
               f"L2 hits/miss={stats.layer2_hits}/{stats.layer2_misses}  "
               f"L3 hits/miss={stats.layer3_hits}/{stats.layer3_misses}  flags={flags}")
-        # Core invariant: κ sweep must NOT recompute Layer 2 — that is the
-        # entire point of having Layer 2 cached.
         assert stats.layer2_misses == 0, (
             f"κ sweep recomputed Layer 2 ({stats.layer2_misses} misses) — "
             f"cache key drift or primary did not populate Layer 2."
         )
-        # Cohort-coverage invariant: every subject with an L2 cache should have
-        # been hit (catches a stale or shrunken cache).
         assert stats.layer2_hits == n_with_l2, (
             f"Layer 2 hit count {stats.layer2_hits} ≠ N_with_L2 from primary "
             f"({n_with_l2}). Cache key drift?"
@@ -94,16 +74,12 @@ def cmd_fd(cohort, results_dir, cache_dir):
         print(f"  FD={fd}: L1 hits/miss={stats.layer1_hits}/{stats.layer1_misses}  "
               f"L2 hits/miss={stats.layer2_hits}/{stats.layer2_misses}  "
               f"L3 hits/miss={stats.layer3_hits}/{stats.layer3_misses}  flags={flags}")
-        # FD == primary should be 100% Layer 1 hits (already computed).
         if abs(fd - PRIMARY_FD) < 1e-9:
             assert stats.layer1_misses == 0, (
                 f"FD={fd} is the primary value but recomputed Layer 1 ({stats.layer1_misses} misses) — "
                 f"primary cache missing or key drift."
             )
         else:
-            # New FD value: Layer 1+2 must be misses on first pass.
-            # (We only assert "non-zero" because some subjects may have been excluded at Layer 1
-            # in the primary, leaving fewer L2 entries than total subjects.)
             assert stats.layer1_misses > 0, (
                 f"FD={fd} should miss Layer 1 (new key) but had 0 misses — stale cache?"
             )

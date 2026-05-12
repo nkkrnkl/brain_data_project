@@ -1,12 +1,3 @@
-"""Phase-3 deliverable: age regression + group comparison + sensitivity analysis.
-
-Outputs (per FD, κ combination):
-    results/group_comparison_FD{fd}_kappa{kappa}.csv
-    results/age_regression_FD{fd}_kappa{kappa}.csv
-
-Permutation test runs conditional on (parametric p<.05 AND fd_age confound flagged
-at that condition).
-"""
 from __future__ import annotations
 
 import argparse
@@ -58,7 +49,6 @@ def group_comparison(df: pd.DataFrame, metrics: list[str] = METRICS) -> pd.DataF
             continue
         U, p = stats.mannwhitneyu(child, adult, alternative="two-sided")
         n1, n2 = len(child), len(adult)
-        # Rank-biserial effect size r = 1 − 2U / (n1·n2)
         r_eff = 1.0 - 2.0 * U / (n1 * n2)
         rows.append({
             "metric": m,
